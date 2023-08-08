@@ -157,7 +157,10 @@ var genOgAndReplace = async (url, component, route, site, element, optionsFactor
   if (!url) {
     return;
   }
-  const ogUrl = urlJoin(site, route);
+  const ogUrl = urlJoin(
+    site,
+    url.pathname.split("dist/")[1].replace("index.html", "")
+  );
   const generateOgImage = async (frontmatter) => {
     const generateOptions = optionsFactory ?? defaultGenerateOptions;
     const ogImageELement = element ?? defaultOgImageELement;

@@ -24,7 +24,10 @@ const genOgAndReplace = async (
     return
   }
 
-  const ogUrl = urlJoin(site, route)
+  const ogUrl = urlJoin(
+    site,
+    url.pathname.split('dist/')[1].replace('index.html', '')
+  )
 
   const generateOgImage = async frontmatter => {
     const generateOptions = optionsFactory ?? defaultGenerateOptions
