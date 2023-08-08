@@ -3,15 +3,12 @@ import type { SatoriOptions } from 'satori'
 import satori from 'satori'
 import urlJoin from 'url-join'
 import { readFile, writeFile } from 'fs/promises'
-import { cwd } from 'process'
-import grayMatter from 'gray-matter'
+import cheerio from 'cheerio'
 import kleur from 'kleur'
-import { join } from 'path'
 import { basename } from 'path/win32'
 import { defaultOgImageELement, defaultGenerateOptions } from './ssg.js'
 import { ogTemplate } from './ogTemplate.js'
 import { fileURLToPath } from 'url'
-import { FrontMatter } from './types.js'
 
 type ReactNode = Parameters<typeof satori>[0]
 
@@ -29,7 +26,7 @@ const genOgAndReplace = async (
 
   const ogUrl = urlJoin(site, route)
 
-  const generateOgImage = async (frontmatter: FrontMatter) => {
+  const generateOgImage = async frontmatter => {
     const generateOptions = optionsFactory ?? defaultGenerateOptions
     const ogImageELement = element ?? defaultOgImageELement
 
@@ -42,21 +39,32 @@ const genOgAndReplace = async (
     }
   }
 
-  const componentAbsolutePath = join(cwd(), component)
-
-  const componentSource = await readFile(componentAbsolutePath, {
+  const componentSource = await readFile(url.pathname, {
     encoding: 'utf-8',
   })
 
-  const parsedFrontMatter = grayMatter(componentSource).data
+  const $ = cheerio.load(componentSource)
+
+  let parsedFrontMatter = {
+    title: '',
+    description: '',
+  }
+
+  $('meta').map((i, el) => {
+    const name = $(el).attr('name') || $(el).attr('property')
+
+    if (!name) {
+      return
+    }
+
+    parsedFrontMatter[name] = $(el).attr('content')
+  })
 
   const pathname = fileURLToPath(url)
 
   const html = await readFile(pathname, { encoding: 'utf-8' })
 
-  const { svgSource, width, height } = await generateOgImage(
-    parsedFrontMatter as FrontMatter
-  )
+  const { svgSource, width, height } = await generateOgImage(parsedFrontMatter)
 
   const htmlBase = basename(pathname, '.html')
 
@@ -82,7 +90,7 @@ const genOgAndReplace = async (
 
 export interface SatoriIntegrationOptions {
   satoriOptionsFactory?: () => Promise<SatoriOptions>
-  satoriElement?: (frontmatter: FrontMatter) => ReactNode
+  satoriElement?: (frontmatter) => ReactNode
 }
 
 function Satori(options: SatoriIntegrationOptions = {}): AstroIntegration {
@@ -124,6 +132,7 @@ function Satori(options: SatoriIntegrationOptions = {}): AstroIntegration {
 
             console.log(kleur.bgGreen('open graph images generated'))
           } catch (e: unknown) {
+            console.log(e)
             console.error(kleur.bgRed('failed to generate open graph images'))
           }
         }
